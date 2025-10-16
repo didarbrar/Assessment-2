@@ -38,7 +38,8 @@ seir(n=10000,ni=10,nt=100,gamma=1/3,delta=1/5,bmu=5e-5,bsc=1e-5)$S
 
 
 ## n=total number of people 
-n<-1000
+n<-10000
+
 ##here we create a h vector of length and which contains the household ID for each person
 
 ## in single line by help of rep and sample
@@ -52,7 +53,7 @@ hmax<-5
 h<-rep(c(1:n),sample(1:hmax,n,replace=TRUE))[1:n]
 length(h)
 head(h,50)
-h[1000]
+
 
 ##---------------------------------------------------------------
 ## Function: get.net
@@ -168,11 +169,11 @@ nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15
     
     # --- Progression transitions ---
     # I -> R (recovery)
-    u <- runif(1)
+    u <- runif(n)
     x[x==2 & u < delta] <- 3
     
     # E -> I (incubation to infectious)
-    u <- runif(1)
+    u <- runif(n)
     x[x==1 & u < gamma] <- 2
     
     # Susceptibles
@@ -202,11 +203,11 @@ nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15
         p_r <- 1 - survive
         
         # --- Combine all sources of infection ---
-        p_total <- 1 - (1 - p_h) * (1 - p_c) * (1 - p_r)
+        p_total <- 1 - ((1 - p_h) * (1 - p_c) * (1 - p_r))
         p_total <- min(max(p_total, 0), 1)  # safety for numerical errors
         
         # Infection trial
-        if(runif(1) < p_total) x[i] <- 1
+        if(runif(1,0,1) < p_total) x[i] <- 1
       }
       
     } # end susceptibles loop
@@ -229,7 +230,7 @@ nseir <- function(beta, h, alink, alpha=c(.1,.01,.01), delta=.2, gamma=.4, nc=15
 # Output:
 #   Generates a line plot of S, E, I, R over time
 
-plot_SEIR <- function(sim, main="SEIR Dynamics") {
+plot_SEIR<- function(sim, main="SEIR Dynamics (Scatter Plot)") {
   
   # Check input
   stopifnot(all(c("S","E","I","R") %in% names(sim)))
@@ -241,30 +242,73 @@ plot_SEIR <- function(sim, main="SEIR Dynamics") {
   plot(time, sim$S, type="n", ylim=c(0, max(sim$S, sim$E, sim$I, sim$R)),
        xlab="Day", ylab="Number of individuals", main=main)
   
-  # Add lines for each compartment
-  lines(time, sim$S, col="blue", lwd=2)
-  lines(time, sim$E, col="orange", lwd=2)
-  lines(time, sim$I, col="red", lwd=2)
-  lines(time, sim$R, col="green", lwd=2)
+  # Add scatter points for each compartment (all as round circles)
+  points(time, sim$S, col="black", pch=16)   # S: blue
+  points(time, sim$E, col="orange", pch=16) # E: orange
+  points(time, sim$I, col="red", pch=16)    # I: red
+  points(time, sim$R, col="green", pch=16)  # R: green
+  
   
   # Add legend
-  legend("topright", legend=c("Susceptible","Exposed","Infectious","Recovered"),
-         col=c("blue","orange","red","green"), lwd=2, bty="n")
+  legend("topright", legend=c("S","E","I","R"), col=c("blue","orange","red","green"), pch=16, bty="n")
   
   # Optional: add grid for clarity
   grid()
 }
 
+
+
 # Example: simulate one scenario with nseir
+set.seed(9983)
 n <- 1000
 beta <- runif(n, 0, 1)
 hmax <- 5
 h<-rep(c(1:n),sample(1:hmax,n,replace=TRUE))[1:n]
 alink <- get.net(beta, h, nc=15)
 
-# Run SEIR simulation (full model)
-sim <- nseir(beta, h, alink, alpha=c(0.1,0.01,0.01), delta=0.2, gamma=0.4, nc=15, nt=100, pinf=0.01)
+# Set plot window: 2 rows, 4 columns, with margins
+par(mfcol=c(2,4), mar=c(4,4,2,1))
 
-# Plot SEIR dynamics
-plot_SEIR(sim, main="Full Model: SEIR Dynamics")
+# -------------------------------
+# Scenario 0: Full model (default)
+# -------------------------------
+epi_0 <- nseir(beta, h, alink)
+
+# Plot beta distribution
+hist(epi_0$beta, xlab="beta", main="Scenario 0: Full model")
+
+plot_SEIR(epi_0)
+# ------------------------------------------------
+# Scenario 1: Remove household/network, random mixing
+# alpha_h = alpha_c = 0, alpha_r = 0.04
+# ------------------------------------------------
+epi_1 <- nseir(beta, h, alink, alpha=c(0,0,0.04))
+
+hist(epi_1$beta, xlab="beta", main="Scenario 1: Random mixing")
+
+plot_SEIR(epi_1)
+
+
+# ------------------------------------------------
+# Scenario 2: Constant beta, full model
+# ------------------------------------------------
+constant_beta <- rep(mean(beta), length(beta))
+epi_2 <- nseir(beta=constant_beta, h, alink)
+
+hist(epi_2$beta, xlab="beta", main="Scenario 2: Constant beta")
+
+plot_SEIR(epi_2)
+
+
+# ------------------------------------------------
+# Scenario 3: Constant beta, random mixing
+# alpha_h = alpha_c = 0, alpha_r = 0.04
+# ------------------------------------------------
+epi_3 <- nseir(beta=constant_beta, h, alink, alpha=c(0,0,0.04))
+
+hist(epi_3$beta, xlab="beta", main="Scenario 3: Constant beta + random mixing")
+
+plot_SEIR(epi_3)
+
+
 

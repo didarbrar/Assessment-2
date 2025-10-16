@@ -54,33 +54,129 @@ length(h)
 head(h,50)
 h[1000]
 
-## step-2 ___________________
+##---------------------------------------------------------------
+## Function: get.net
+##---------------------------------------------------------------
+## Purpose:
+##   Create a network of non-household contacts based on 
+##   individuals’ activity levels (Beta) and household structure (h).
+##
+## Inputs:
+##   Beta : vector of activity levels for each person
+##   h    : vector indicating household membership
+##   nc   : expected number of non-household contacts per person
+##
+## Output:
+##   A list of length n, where each element contains the indices 
+##   of that person’s non-household contacts.
+##---------------------------------------------------------------
 
-##-------------------
-
-get.net<-function(Beta,h,nc){
+get.net<-function(beta,h,nc){
+  ##Number of individuals in population
+  n<-length(beta)
+  
+  # Create an empty list where each element will store contacts for one person
   mylist<-vector("list",n)
-  B<-sum(Beta)/n
-  for (i in  1:n){
-    link<-c()
-    for (j in 1:n){
-      u<-runif(1,0,1)
-      p=(nc*Beta[i]*Beta[j])/((B**2)*(n-1))
-      if(h[i]!=h[j]&u<p){
-        link<-c(link,j)
+  
+  # Initialize each list element as an empty integer vector
+  for(i in 1:n) mylist[[i]]<-integer(0)
+  
+  # Mean activity level across the population (used in probability formula)
+  B<-sum(beta)/n
+  
+  
+  # Loop through all unique pairs (i, j) with i < j to avoid double checking
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      
+      # Only consider non-household contacts
+      if (h[i] != h[j]) {
+        
+        # Compute probability of forming a link between i and j
+        p <- (nc * beta[i] * beta[j]) / ((B^2) * (n - 1))
+        
+        # Ensure probability does not exceed 1
+        p <- min(1, p)
+        
+        # Draw one random number to decide if link is formed
+        if (runif(1, 0, 1) < p) {
+          
+          # Record the link in both individuals' contact lists (symmetric)
+          mylist[[i]] <- c(mylist[[i]], j)
+          mylist[[j]] <- c(mylist[[j]], i)
+        }
       }
     }
-    mylist[[i]]<-link
   }
-  return (mylist)
+  
+  # Return the full network as a list
+  return(mylist)
 }
 
-set.seed(42)
-n <- 10
-Beta <- runif(n, 0.5, 1.5)
-h <- c(1,1,2,2,3,3,4,4,5,5)
+##----------------------
 
-contacts <- get.net(Beta, h, nc = 15)
-contacts
+## step-3 
+
+##--------------------
+
+## function for finding number of prople in S,E,I,R for each day
+x<-c(0,0,1,1,2,3,4,2)
+b<-(which(x==2))
+b
+for (i in b){
+  print(i)
+}
+nseir<-function(beta,h,alink,alpha=c(.1,.01,.01),delta=.2,gamma=.4,nc=15, nt = 100,pinf = .005){
+  
+  n<-length(beta)
+  
+  x <- rep(0,n) ## initialize to susceptible state
+  
+  ni<-pinf*n
+  
+  B<-sum(beta)/n
+  
+  for (i in 1:ni) {
+    x[sample(1:n,1)]<-2
+  }
+  
+  S<-E<-I<-R<-rep(0,nt) ## set up storage for pop in each state
+  S[1] <- n-ni;I[1] <- ni ## initialize
+  ##loop over days 
+  for(i in 2:nt) {
+    u <- runif(n) ## uniform random deviates
+    b<-which(x==2)
+    x[x==2&u<delta] <- 3 ## I -> R with prob delta
+    x[x==1&u<gamma] <- 2 ## E -> I with prob gamma
+    a<-which(x==0)
+    for (i in a){
+      IH<-0
+      for (j in b){
+        if(h(i)==h(j)){
+          IH<-IH+1
+        }
+      }
+      a1<-IH*alpha[1]
+      IN<-0
+      for (j in b){
+        if(alink[[i]][j]==j){
+          In<-In+1
+        }
+      } 
+      a2<-IN*alpha[2]
+      a3<-0
+      for (j in b){
+        a3<-a3+((alpha[3]*nc * beta[i] * beta[j]) / ((B^2) * (n - 1)))
+      }
+      if (u<a1|u<a2|u<a3){
+        x[i]<-1
+      }
+    }
+    S[i] <- sum(x==0); E[i] <- sum(x==1)
+    I[i] <- sum(x==2); R[i] <- sum(x==3)
+  }
+  list(S=S,E=E,I=I,R=R,beta=beta)
+  ##seir
+}
 
 

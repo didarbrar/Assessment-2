@@ -24,7 +24,7 @@
 
 
 ## n=total number of people 
-n<-10000
+n<-1000
 
 ##here we create a h vector of length and which contains the household ID for each person
 

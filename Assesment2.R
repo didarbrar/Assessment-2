@@ -3,7 +3,7 @@
 # -------------------------------------------------------------
 # Members:
 #   Member 1: Didar Singh (s2903783)
-#   Member 2: Liyan Yang
+#   Member 2: Liyan Yang()
 #
 # Contribution:
 #   • Didar Singh – 50% (Steps 1, 2, 3: Generating nSEIR function and contact network)
